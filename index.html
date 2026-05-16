@@ -999,7 +999,9 @@
                     const apiKey = ""; // Canvas provides key
                     const customKey = localStorage.getItem('custom_gemini_key');
                     const finalApiKey = customKey ? customKey : apiKey;
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${finalApiKey}`;
+                    
+                    // 將過期的 preview 版本更改為正式穩定版的 gemini-2.5-flash 模型
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${finalApiKey}`;
                     
                     const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果是空菜單請回傳空陣列。";
 
