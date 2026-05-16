@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-     const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -997,7 +997,9 @@
                 
                 try {
                     const apiKey = ""; // Canvas provides key
-                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    const customKey = localStorage.getItem('custom_gemini_key');
+                    const finalApiKey = customKey ? customKey : apiKey;
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${finalApiKey}`;
                     
                     const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果是空菜單請回傳空陣列。";
 
@@ -1261,7 +1263,7 @@
         function renderAdminSettings() {
             return `
                 <h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">個人設定</h2>
-                <div class="max-w-md bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
+                <div class="max-w-md bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
                     <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-key mr-2"></i>修改我的密碼</h3>
                     <div class="space-y-4">
                         <div>
@@ -1271,8 +1273,30 @@
                         <button onclick="changeMyPassword()" class="w-full bg-matcha text-white py-2 rounded shadow hover:bg-matcha-dark transition font-bold">儲存新密碼</button>
                     </div>
                 </div>
+
+                <div class="max-w-md bg-purple-50 p-6 rounded-lg border border-purple-200 shadow-sm">
+                    <h3 class="font-bold text-lg mb-2 text-purple-800"><i class="fa-solid fa-robot mr-2"></i>AI 辨識金鑰設定 (外部環境專用)</h3>
+                    <p class="text-xs text-purple-600 mb-4">若遇到「無法辨識」或無權限錯誤，請到 Google AI Studio 免費申請 API Key 並填寫於此。</p>
+                    <div class="space-y-4">
+                        <div>
+                            <input type="password" id="setting-api-key" class="w-full border p-2 rounded focus:outline-none focus:border-purple-400 bg-white" value="${localStorage.getItem('custom_gemini_key') || ''}" placeholder="AIzaSy...">
+                        </div>
+                        <button onclick="saveApiKey()" class="w-full bg-purple-600 text-white py-2 rounded shadow hover:bg-purple-700 transition font-bold">儲存 API Key</button>
+                    </div>
+                </div>
             `;
         }
+
+        window.saveApiKey = () => {
+            const key = document.getElementById('setting-api-key').value.trim();
+            if(key) {
+                localStorage.setItem('custom_gemini_key', key);
+                alert('API Key 已儲存至瀏覽器！請重新嘗試掃描。');
+            } else {
+                localStorage.removeItem('custom_gemini_key');
+                alert('API Key 已清除。');
+            }
+        };
 
         window.changeMyPassword = async () => {
             const newPass = document.getElementById('setting-new-pass').value.trim();
