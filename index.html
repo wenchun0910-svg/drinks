@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>和風茶屋 - 飲料訂購系統</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Noto+Serif+JP:wght@400;700&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        matcha: { DEFAULT: '#8a9a5b', light: '#a3b176', dark: '#6b7942' },
+                        wood: { DEFAULT: '#d2b48c', dark: '#a68a64' },
+                        paper: { DEFAULT: '#fdfbf7', dark: '#f4f0ea' },
+                        ink: { DEFAULT: '#2c3e50', light: '#4a5568' }
+                    },
+                    fontFamily: {
+                        sans: ['"Noto Sans TC"', 'sans-serif'],
+                        serif: ['"Noto Serif JP"', 'serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #fdfbf7; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%238a9a5b' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); }
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+        .modal-fade { animation: fadeIn 0.2s ease-in-out; }
+        @keyframes fadeIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+        .loader { border: 4px solid #f3f3f3; border-top: 4px solid #8a9a5b; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    </style>
+</head>
+<body class="text-ink antialiased">
+
+    <!-- Navbar -->
+    <nav class="bg-white shadow-md sticky top-0 z-50 border-b-4 border-matcha">
+        <div class="max-w-6xl mx-auto px-4 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3 cursor-pointer" onclick="switchView('customer')">
+                <div class="w-10 h-10 bg-matcha rounded-full flex items-center justify-center text-white text-xl">
+                    <i class="fa-solid fa-leaf"></i>
+                </div>
+                <h1 class="text-2xl font-bold font-serif text-matcha-dark hidden sm:block">和風茶屋</h1>
+            </div>
+            
+            <div id="nav-customer-controls" class="flex items-center gap-4 flex-1 justify-end">
+                <div class="relative max-w-xs w-full sm:w-64 hidden sm:block">
+                    <select id="shop-selector" onchange="changeShop(this.value)" class="w-full appearance-none bg-paper border border-wood-dark text-ink py-2 px-4 pr-8 rounded leading-tight focus:outline-none focus:border-matcha">
+                        <option value="">-- 選擇店家 --</option>
+                    </select>
+                    <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-matcha">
+                        <i class="fa-solid fa-chevron-down"></i>
+                    </div>
+                </div>
+                
+                <button onclick="toggleCart()" class="relative text-ink hover:text-matcha transition p-2">
+                    <i class="fa-solid fa-cart-shopping text-xl"></i>
+                    <span id="cart-badge" class="absolute top-0 right-0 -mt-1 -mr-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center hidden">0</span>
+                </button>
+                <button onclick="openLoginModal()" id="btn-login" class="text-sm border border-matcha text-matcha px-3 py-1.5 rounded hover:bg-matcha hover:text-white transition">管理登入</button>
+            </div>
+
+            <div id="nav-admin-controls" class="hidden items-center gap-4">
+                <span id="admin-user-name" class="text-sm text-gray-600 font-bold"></span>
+                <button onclick="logoutAdmin()" class="text-sm border border-red-400 text-red-500 px-3 py-1.5 rounded hover:bg-red-50 hover:text-red-600 transition">登出</button>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Mobile Shop Selector (Visible only on mobile) -->
+    <div class="sm:hidden p-3 bg-white border-b border-gray-200" id="mobile-shop-selector-container">
+        <select id="mobile-shop-selector" onchange="changeShop(this.value)" class="w-full appearance-none bg-paper border border-wood-dark text-ink py-2 px-4 rounded leading-tight focus:outline-none focus:border-matcha text-center font-bold">
+            <option value="">-- 請先選擇店家 --</option>
+        </select>
+    </div>
+
+    <!-- Main Content Container -->
+    <main id="app-container" class="max-w-6xl mx-auto px-4 py-8 min-h-[calc(100vh-140px)]"></main>
+
+    <!-- Footer -->
+    <footer class="bg-ink text-paper text-center py-6 mt-auto">
+        <p class="text-sm">&copy; <span id="current-year"></span> 和風茶屋訂購系統. All rights reserved.</p>
+    </footer>
+
+    <!-- Global Modal -->
+    <div id="global-modal" class="fixed inset-0 z-[60] hidden flex-col items-center justify-center">
+        <div class="absolute inset-0 bg-black bg-opacity-60 backdrop-blur-sm" onclick="closeModal()"></div>
+        <div class="bg-white rounded-lg shadow-2xl z-10 w-11/12 max-w-lg overflow-hidden modal-fade relative flex flex-col max-h-[90vh]">
+            <div id="modal-header" class="px-6 py-4 border-b flex justify-between items-center bg-matcha text-white shrink-0">
+                <h3 id="modal-title" class="text-lg font-bold font-serif">提示</h3>
+                <button onclick="closeModal()" class="hover:text-gray-200 transition"><i class="fa-solid fa-xmark text-xl"></i></button>
+            </div>
+            <div id="modal-body" class="px-6 py-6 text-ink overflow-y-auto no-scrollbar grow">
+                <!-- 訊息內容 -->
+            </div>
+            <div id="modal-footer" class="px-6 py-4 bg-paper flex justify-end gap-3 border-t shrink-0">
+                <button id="modal-cancel-btn" onclick="closeModal()" class="px-4 py-2 border border-gray-300 text-gray-600 rounded hover:bg-gray-100 hidden transition">取消</button>
+                <button id="modal-confirm-btn" class="px-4 py-2 bg-matcha text-white rounded hover:bg-matcha-dark transition shadow">確定</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Shopping Cart Sidebar -->
+    <div id="cart-sidebar" class="fixed inset-y-0 right-0 w-full sm:w-96 bg-white shadow-2xl z-50 transform translate-x-full transition-transform duration-300 flex flex-col">
+        <div class="px-6 py-4 border-b bg-matcha text-white flex justify-between items-center">
+            <h2 class="text-xl font-bold font-serif"><i class="fa-solid fa-basket-shopping mr-2"></i>購物車</h2>
+            <button onclick="toggleCart()" class="text-white hover:text-gray-200 text-2xl"><i class="fa-solid fa-xmark"></i></button>
+        </div>
+        <div id="cart-items" class="flex-1 overflow-y-auto p-4 space-y-4 bg-paper">
+            <!-- 購物車品項 -->
+        </div>
+        <div class="border-t p-6 bg-white">
+            <div class="flex justify-between items-center mb-4 text-lg font-bold text-ink">
+                <span>總計:</span>
+                <span id="cart-total" class="text-matcha-dark text-2xl">$0</span>
+            </div>
+            <div class="space-y-3">
+                <input type="text" id="order-customer-name" placeholder="您的姓名 / 暱稱" class="w-full border p-3 rounded focus:outline-none focus:border-matcha bg-gray-50">
+                <input type="text" id="order-customer-notes" placeholder="備註 (如：冰塊甜度、統一編號...)" class="w-full border p-3 rounded focus:outline-none focus:border-matcha bg-gray-50">
+                <button onclick="submitOrder()" class="w-full bg-matcha text-white font-bold py-3 rounded shadow hover:bg-matcha-dark transition text-lg flex justify-center items-center gap-2">
+                    <i class="fa-regular fa-paper-plane"></i> 送出訂單
+                </button>
+            </div>
+        </div>
+    </div>
+    <!-- Cart Overlay -->
+    <div id="cart-overlay" onclick="toggleCart()" class="fixed inset-0 bg-black bg-opacity-50 z-40 hidden backdrop-blur-sm"></div>
+
+    <!-- AI Scan Hidden File Input -->
+    <input type="file" id="ai-menu-upload" accept="image/*" class="hidden" onchange="processMenuImage(event)">
+
+    <!-- Loading Overlay -->
+    <div id="loading-overlay" class="fixed inset-0 bg-white z-[100] flex flex-col items-center justify-center">
+        <div class="loader mb-4"></div>
+        <p class="text-matcha font-bold font-serif">系統載入中...</p>
+    </div>
+
+    <!-- Firebase & Application Logic -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, collection, onSnapshot, addDoc, updateDoc, deleteDoc, doc, setDoc, getDocs, query, serverTimestamp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // ==========================================
+        // 1. Firebase Initialization & Config
+        // ==========================================
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
+            // Mock config to prevent crash if running outside Canvas unexpectedly
+            apiKey: "mock-key", authDomain: "mock.firebaseapp.com", projectId: "mock-project"
+        };
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'wafu-tea-demo';
+
+        // Firestore Paths (Strictly following canvas rules for public data to allow easy demo)
+        const PATH_SHOPS = `artifacts/${appId}/public/data/shops`;
+        const PATH_MENUS = `artifacts/${appId}/public/data/menus`;
+        const PATH_ORDERS = `artifacts/${appId}/public/data/orders`;
+        const PATH_ADMINS = `artifacts/${appId}/public/data/admins`;
+
+        // ==========================================
+        // 2. State Management
+        // ==========================================
+        const state = {
+            shops: [],
+            menus: [],
+            orders: [],
+            admins: [],
+            cart: [],
+            currentShopId: null,
+            adminUser: null, // null if not logged in
+            currentAdminTab: 'orders'
+        };
+
+        // ==========================================
+        // 3. Application Initialization & Auth
+        // ==========================================
+        document.getElementById('current-year').textContent = new Date().getFullYear();
+
+        const initAuth = async () => {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+            } catch (error) {
+                console.error("Auth Error:", error);
+                hideLoading();
+                showModal('連線錯誤', '無法連接資料庫，請重新整理頁面。');
+            }
+        };
+
+        onAuthStateChanged(auth, async (user) => {
+            if (user) {
+                await setupDataListeners();
+                checkInitialAdmin();
+            }
+        });
+
+        // ==========================================
+        // 4. Data Listeners (Firestore Realtime)
+        // ==========================================
+        async function setupDataListeners() {
+            // 監聽店家
+            onSnapshot(collection(db, PATH_SHOPS), (snapshot) => {
+                state.shops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                updateShopSelectors();
+                if (!state.currentShopId && state.shops.length > 0) {
+                    // Default to first shop if none selected
+                    changeShop(state.shops[0].id, true);
+                }
+                reRenderCurrentView();
+            }, (error) => console.error("Error fetching shops:", error));
+
+            // 監聽菜單
+            onSnapshot(collection(db, PATH_MENUS), (snapshot) => {
+                state.menus = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                reRenderCurrentView();
+            }, (error) => console.error("Error fetching menus:", error));
+
+            // 監聽訂單
+            onSnapshot(collection(db, PATH_ORDERS), (snapshot) => {
+                state.orders = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                // Sort client-side (Newest first)
+                state.orders.sort((a, b) => {
+                    const timeA = a.createdAt?.toMillis ? a.createdAt.toMillis() : 0;
+                    const timeB = b.createdAt?.toMillis ? b.createdAt.toMillis() : 0;
+                    return timeB - timeA;
+                });
+                reRenderCurrentView();
+            }, (error) => console.error("Error fetching orders:", error));
+
+            // 監聽管理員列表
+            onSnapshot(collection(db, PATH_ADMINS), (snapshot) => {
+                state.admins = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                reRenderCurrentView();
+            }, (error) => console.error("Error fetching admins:", error));
+
+            setTimeout(hideLoading, 1000); // Give data a moment to load
+        }
+
+        // Initialize default admin if no admins exist
+        async function checkInitialAdmin() {
+            const adminCol = collection(db, PATH_ADMINS);
+            const snapshot = await getDocs(adminCol);
+            if (snapshot.empty) {
+                // Create default admin
+                await addDoc(adminCol, {
+                    username: 'admin',
+                    password: 'admin123', // In a real app, hash this!
+                    role: 'super_admin',
+                    createdAt: serverTimestamp()
+                });
+                console.log("預設管理員已建立：admin / admin123");
+            }
+        }
+
+        // ==========================================
+        // 5. Core UI Functions
+        // ==========================================
+        function hideLoading() {
+            document.getElementById('loading-overlay').classList.add('hidden');
+        }
+
+        function reRenderCurrentView() {
+            if (state.adminUser) {
+                renderAdminDashboard();
+            } else {
+                renderCustomerView();
+            }
+        }
+
+        window.switchView = (view) => {
+            if (view === 'customer') {
+                if (state.adminUser) {
+                    showModal('提示', '您目前正在後台管理模式。要返回顧客點餐畫面，請先登出。');
+                } else {
+                    renderCustomerView();
+                }
+            }
+        };
+
+        // Selectors updater
+        function updateShopSelectors() {
+            const selectors = [document.getElementById('shop-selector'), document.getElementById('mobile-shop-selector')];
+            selectors.forEach(sel => {
+                if (!sel) return;
+                const currentVal = state.currentShopId || sel.value;
+                sel.innerHTML = `<option value="">-- 選擇店家 --</option>` + 
+                    state.shops.map(s => `<option value="${s.id}">${s.name} ${s.isOpen === false ? '(休息中)' : ''}</option>`).join('');
+                if (currentVal && state.shops.find(s => s.id === currentVal)) {
+                    sel.value = currentVal;
+                }
+            });
+        }
+
+        window.changeShop = (shopId, isInitial = false) => {
+            if (!shopId) return;
+            const shop = state.shops.find(s => s.id === shopId);
+            if (shop && shop.isOpen === false) {
+                showModal('很抱歉', '此店家目前休息中，無法訂購。');
+                // Revert select
+                updateShopSelectors();
+                return;
+            }
+
+            if (state.cart.length > 0 && state.currentShopId !== shopId && !isInitial) {
+                showModal('切換店家', '切換店家將會清空您目前的購物車，是否繼續？', () => {
+                    state.cart = [];
+                    state.currentShopId = shopId;
+                    updateCartUI();
+                    updateShopSelectors();
+                    renderCustomerView();
+                }, true);
+            } else {
+                state.currentShopId = shopId;
+                updateShopSelectors();
+                if (!state.adminUser) renderCustomerView();
+            }
+        };
+
+        // ==========================================
+        // 6. Customer View Logic
+        // ==========================================
+        function renderCustomerView() {
+            const container = document.getElementById('app-container');
+            document.getElementById('nav-customer-controls').classList.replace('hidden', 'flex');
+            document.getElementById('nav-admin-controls').classList.replace('flex', 'hidden');
+            document.getElementById('mobile-shop-selector-container').classList.remove('hidden');
+
+            if (state.shops.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-20">
+                        <i class="fa-solid fa-store-slash text-6xl text-gray-300 mb-4"></i>
+                        <h2 class="text-2xl font-serif font-bold text-gray-500">目前尚無店家營業</h2>
+                        <p class="text-gray-400 mt-2">請稍後再試，或聯絡管理員。</p>
+                    </div>`;
+                return;
+            }
+
+            if (!state.currentShopId) {
+                container.innerHTML = `
+                    <div class="text-center py-20">
+                        <i class="fa-solid fa-hand-pointer text-6xl text-matcha-light mb-4"></i>
+                        <h2 class="text-2xl font-serif font-bold text-ink">請先從上方選擇店家</h2>
+                    </div>`;
+                return;
+            }
+
+            const currentShop = state.shops.find(s => s.id === state.currentShopId);
+            const shopMenus = state.menus.filter(m => m.shopId === state.currentShopId && m.isAvailable !== false);
+            
+            // Group menus by category
+            const categories = {};
+            shopMenus.forEach(item => {
+                const cat = item.category || '精選飲品';
+                if (!categories[cat]) categories[cat] = [];
+                categories[cat].push(item);
+            });
+
+            let html = `
+                <div class="mb-8 text-center sm:text-left">
+                    <h2 class="text-3xl font-bold font-serif text-ink border-b-2 border-matcha inline-block pb-2">${currentShop.name}</h2>
+                    ${currentShop.description ? `<p class="mt-3 text-gray-600 bg-white p-4 rounded shadow-sm border-l-4 border-wood">${currentShop.description}</p>` : ''}
+                </div>
+            `;
+
+            if (currentShop.menuImageUrl) {
+                html += `
+                    <div class="mb-10 bg-white p-2 rounded shadow-md">
+                        <div class="bg-gray-100 text-center text-sm py-1 mb-2 text-gray-500 rounded">實體菜單參考</div>
+                        <img src="${currentShop.menuImageUrl}" alt="${currentShop.name} 菜單" class="w-full max-h-96 object-contain rounded cursor-pointer" onclick="showImageModal('${currentShop.menuImageUrl}')" onerror="this.style.display='none'">
+                    </div>
+                `;
+            }
+
+            if (shopMenus.length === 0) {
+                html += `<div class="text-center py-10 text-gray-500">此店家尚未新增飲品。</div>`;
+            } else {
+                for (const [cat, items] of Object.entries(categories)) {
+                    html += `
+                        <div class="mb-8">
+                            <h3 class="text-xl font-bold font-serif text-wood-dark mb-4 flex items-center gap-2">
+                                <i class="fa-solid fa-leaf text-matcha"></i> ${cat}
+                            </h3>
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    `;
+                    items.forEach(item => {
+                        html += `
+                            <div class="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition overflow-hidden flex flex-col relative group">
+                                <div class="p-5 flex-1">
+                                    <div class="flex justify-between items-start mb-2">
+                                        <h4 class="text-lg font-bold text-ink">${item.name}</h4>
+                                        <span class="text-matcha-dark font-bold text-lg">$${item.price}</span>
+                                    </div>
+                                    ${item.description ? `<p class="text-sm text-gray-500 mt-2">${item.description}</p>` : ''}
+                                </div>
+                                <div class="bg-gray-50 p-3 border-t">
+                                    <button onclick="addToCart('${item.id}', '${item.name}', ${item.price})" class="w-full bg-white border border-matcha text-matcha py-2 rounded hover:bg-matcha hover:text-white transition font-bold group-hover:bg-matcha group-hover:text-white">
+                                        <i class="fa-solid fa-plus mr-1"></i> 加入購物車
+                                    </button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                    html += `</div></div>`;
+                }
+            }
+            container.innerHTML = html;
+        }
+
+        window.showImageModal = (url) => {
+            showModal('菜單預覽', `<img src="${url}" class="w-full rounded" style="max-height: 70vh; object-fit: contain;">`);
+        };
+
+        // ==========================================
+        // 7. Cart & Ordering Logic
+        // ==========================================
+        window.addToCart = (id, name, price) => {
+            const existing = state.cart.find(item => item.id === id);
+            if (existing) {
+                existing.qty += 1;
+            } else {
+                state.cart.push({ id, name, price, qty: 1 });
+            }
+            updateCartUI();
+            
+            // Simple toast effect on badge
+            const badge = document.getElementById('cart-badge');
+            badge.classList.add('scale-150');
+            setTimeout(() => badge.classList.remove('scale-150'), 200);
+        };
+
+        window.updateCartQty = (index, delta) => {
+            state.cart[index].qty += delta;
+            if (state.cart[index].qty <= 0) {
+                state.cart.splice(index, 1);
+            }
+            updateCartUI();
+        };
+
+        function updateCartUI() {
+            const cartItemsEl = document.getElementById('cart-items');
+            const totalEl = document.getElementById('cart-total');
+            const badge = document.getElementById('cart-badge');
+
+            const totalQty = state.cart.reduce((sum, item) => sum + item.qty, 0);
+            
+            if (totalQty > 0) {
+                badge.textContent = totalQty;
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+
+            if (state.cart.length === 0) {
+                cartItemsEl.innerHTML = `<div class="text-center py-10 text-gray-400"><i class="fa-solid fa-basket-shopping text-4xl mb-3"></i><p>購物車是空的</p></div>`;
+                totalEl.textContent = `$0`;
+                return;
+            }
+
+            let total = 0;
+            cartItemsEl.innerHTML = state.cart.map((item, index) => {
+                const subtotal = item.price * item.qty;
+                total += subtotal;
+                return `
+                    <div class="bg-white p-3 rounded shadow-sm border border-gray-100 flex justify-between items-center">
+                        <div class="flex-1">
+                            <h4 class="font-bold text-ink text-sm sm:text-base">${item.name}</h4>
+                            <div class="text-matcha-dark font-bold text-sm">$${item.price}</div>
+                        </div>
+                        <div class="flex items-center gap-3">
+                            <button onclick="updateCartQty(${index}, -1)" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition"><i class="fa-solid fa-minus text-xs"></i></button>
+                            <span class="w-4 text-center font-bold text-ink">${item.qty}</span>
+                            <button onclick="updateCartQty(${index}, 1)" class="w-8 h-8 rounded-full bg-matcha-light text-white hover:bg-matcha flex items-center justify-center transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+            totalEl.textContent = `$${total}`;
+        }
+
+        window.toggleCart = () => {
+            const sidebar = document.getElementById('cart-sidebar');
+            const overlay = document.getElementById('cart-overlay');
+            if (sidebar.classList.contains('translate-x-full')) {
+                sidebar.classList.remove('translate-x-full');
+                overlay.classList.remove('hidden');
+            } else {
+                sidebar.classList.add('translate-x-full');
+                overlay.classList.add('hidden');
+            }
+        };
+
+        window.submitOrder = async () => {
+            if (state.cart.length === 0) return showModal('提示', '購物車是空的！');
+            
+            const name = document.getElementById('order-customer-name').value.trim();
+            if (!name) return showModal('提示', '請輸入您的姓名或暱稱！');
+            
+            const notes = document.getElementById('order-customer-notes').value.trim();
+            const total = state.cart.reduce((sum, item) => sum + (item.price * item.qty), 0);
+            
+            const shop = state.shops.find(s => s.id === state.currentShopId);
+
+            const orderData = {
+                shopId: state.currentShopId,
+                shopName: shop ? shop.name : '未知店家',
+                customerName: name,
+                notes: notes,
+                items: [...state.cart],
+                totalAmount: total,
+                status: 'pending', // pending, completed, cancelled
+                createdAt: serverTimestamp()
+            };
+
+            try {
+                showModal('處理中', '<div class="text-center py-6"><div class="loader mx-auto mb-4"></div><p>正在送出訂單...</p></div>');
+                await addDoc(collection(db, PATH_ORDERS), orderData);
+                
+                state.cart = [];
+                updateCartUI();
+                document.getElementById('order-customer-notes').value = '';
+                toggleCart();
+                
+                showModal('訂購成功', `<div class="text-center"><i class="fa-solid fa-circle-check text-5xl text-matcha mb-4"></i><p class="text-lg">您的訂單已送出！</p><p class="text-sm text-gray-500 mt-2">店家準備中，請稍候。</p></div>`);
+            } catch (error) {
+                console.error("Order error", error);
+                showModal('錯誤', '送出訂單失敗，請稍後再試。');
+            }
+        };
+
+        // ==========================================
+        // 8. Admin Login & UI
+        // ==========================================
+        window.openLoginModal = () => {
+            const html = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">帳號</label>
+                        <input type="text" id="login-user" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-gray-50" value="admin">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">密碼</label>
+                        <input type="password" id="login-pass" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-gray-50">
+                    </div>
+                </div>
+            `;
+            showModal('管理員登入', html, () => {
+                const u = document.getElementById('login-user').value.trim();
+                const p = document.getElementById('login-pass').value.trim();
+                
+                const admin = state.admins.find(a => a.username === u && a.password === p);
+                if (admin) {
+                    state.adminUser = admin;
+                    document.getElementById('admin-user-name').innerHTML = `<i class="fa-solid fa-user-shield text-matcha mr-1"></i> ${admin.username}`;
+                    renderAdminDashboard();
+                } else {
+                    alert('帳號或密碼錯誤！'); // Using alert inside modal workflow to prevent modal close overriding
+                }
+            }, true, '登入');
+        };
+
+        window.logoutAdmin = () => {
+            state.adminUser = null;
+            renderCustomerView();
+        };
+
+        function renderAdminDashboard() {
+            document.getElementById('nav-customer-controls').classList.replace('flex', 'hidden');
+            document.getElementById('mobile-shop-selector-container').classList.add('hidden');
+            document.getElementById('nav-admin-controls').classList.replace('hidden', 'flex');
+
+            const container = document.getElementById('app-container');
+            const tabs = [
+                { id: 'orders', name: '訂單管理', icon: 'fa-clipboard-list' },
+                { id: 'shops', name: '店家管理', icon: 'fa-store' },
+                { id: 'menus', name: '菜單管理', icon: 'fa-book-open' },
+                { id: 'admins', name: '帳號管理', icon: 'fa-users-gear', reqSuper: true },
+                { id: 'settings', name: '個人設定', icon: 'fa-gear' }
+            ];
+
+            let html = `
+                <div class="flex flex-col md:flex-row gap-6">
+                    <!-- Admin Sidebar -->
+                    <div class="w-full md:w-64 shrink-0">
+                        <div class="bg-white rounded-lg shadow-md p-4 sticky top-20 border-t-4 border-matcha">
+                            <h3 class="text-lg font-bold font-serif mb-4 text-ink border-b pb-2">後台管理中心</h3>
+                            <ul class="space-y-2">
+            `;
+
+            tabs.forEach(tab => {
+                if (tab.reqSuper && state.adminUser.role !== 'super_admin') return;
+                const isActive = state.currentAdminTab === tab.id;
+                html += `
+                    <li>
+                        <button onclick="switchAdminTab('${tab.id}')" class="w-full text-left px-4 py-3 rounded transition flex items-center gap-3 ${isActive ? 'bg-matcha text-white font-bold shadow' : 'text-gray-600 hover:bg-paper hover:text-matcha'}">
+                            <i class="fa-solid ${tab.icon} w-5 text-center"></i> ${tab.name}
+                        </button>
+                    </li>
+                `;
+            });
+
+            html += `
+                            </ul>
+                        </div>
+                    </div>
+                    <!-- Admin Content -->
+                    <div class="flex-1 bg-white rounded-lg shadow-md p-6 border border-gray-100" id="admin-content-area">
+                        ${getAdminTabContent(state.currentAdminTab)}
+                    </div>
+                </div>
+            `;
+            container.innerHTML = html;
+        }
+
+        window.switchAdminTab = (tabId) => {
+            state.currentAdminTab = tabId;
+            renderAdminDashboard();
+        };
+
+        function getAdminTabContent(tabId) {
+            switch(tabId) {
+                case 'orders': return renderAdminOrders();
+                case 'shops': return renderAdminShops();
+                case 'menus': return renderAdminMenus();
+                case 'admins': return renderAdminAccounts();
+                case 'settings': return renderAdminSettings();
+                default: return '<p>選擇左側選單開始管理。</p>';
+            }
+        }
+
+        // --- Admin: Orders ---
+        function renderAdminOrders() {
+            let html = `<h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">即時訂單管理</h2>`;
+            
+            if (state.orders.length === 0) {
+                html += `<div class="text-center py-10 text-gray-400"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p>目前沒有任何訂單</p></div>`;
+                return html;
+            }
+
+            html += `<div class="space-y-4">`;
+            state.orders.forEach(order => {
+                const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : '剛剛';
+                const statusColors = { pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', completed: 'bg-green-100 text-green-800 border-green-200', cancelled: 'bg-red-100 text-red-800 border-red-200' };
+                const statusNames = { pending: '製作中', completed: '已完成', cancelled: '已取消' };
+                
+                html += `
+                    <div class="border rounded-lg p-4 shadow-sm relative overflow-hidden bg-white">
+                        <div class="absolute top-0 right-0 px-3 py-1 text-xs font-bold rounded-bl-lg border-b border-l ${statusColors[order.status] || 'bg-gray-100'}">
+                            ${statusNames[order.status] || order.status}
+                        </div>
+                        <div class="flex flex-wrap justify-between items-start mb-3 gap-4">
+                            <div>
+                                <h3 class="font-bold text-lg text-ink">${order.customerName}</h3>
+                                <div class="text-xs text-gray-500 mt-1"><i class="fa-regular fa-clock"></i> ${date} &nbsp; | &nbsp; <i class="fa-solid fa-store"></i> ${order.shopName}</div>
+                            </div>
+                            <div class="text-right">
+                                <span class="font-bold text-matcha-dark text-xl">$${order.totalAmount}</span>
+                            </div>
+                        </div>
+                        ${order.notes ? `<div class="bg-yellow-50 p-2 rounded text-sm text-yellow-800 mb-3 border border-yellow-100"><i class="fa-solid fa-pen-to-square"></i> 備註：${order.notes}</div>` : ''}
+                        
+                        <div class="bg-gray-50 rounded p-3 mb-4 border text-sm">
+                            <ul class="space-y-1">
+                                ${order.items.map(i => `
+                                    <li class="flex justify-between border-b border-dashed border-gray-200 pb-1 last:border-0 last:pb-0">
+                                        <span>${i.name}</span>
+                                        <span class="text-gray-600">x${i.qty} &nbsp; ($${i.price * i.qty})</span>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                        
+                        ${order.status === 'pending' ? `
+                            <div class="flex gap-2 justify-end">
+                                <button onclick="updateOrderStatus('${order.id}', 'cancelled')" class="px-3 py-1.5 text-sm border border-red-300 text-red-500 rounded hover:bg-red-50 transition">取消訂單</button>
+                                <button onclick="updateOrderStatus('${order.id}', 'completed')" class="px-3 py-1.5 text-sm bg-matcha text-white rounded shadow hover:bg-matcha-dark transition">標記為完成</button>
+                            </div>
+                        ` : `
+                            <div class="flex gap-2 justify-end">
+                                <button onclick="deleteOrder('${order.id}')" class="px-3 py-1 text-xs text-gray-400 hover:text-red-500 transition"><i class="fa-solid fa-trash"></i> 刪除紀錄</button>
+                            </div>
+                        `}
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        window.updateOrderStatus = async (id, status) => {
+            try {
+                await updateDoc(doc(db, PATH_ORDERS, id), { status });
+            } catch (e) { console.error(e); alert('更新失敗'); }
+        };
+        window.deleteOrder = async (id) => {
+            if(confirm('確定要刪除這筆紀錄嗎？')) {
+                try { await deleteDoc(doc(db, PATH_ORDERS, id)); } 
+                catch (e) { console.error(e); alert('刪除失敗'); }
+            }
+        };
+
+        // --- Admin: Shops ---
+        function renderAdminShops() {
+            let html = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold font-serif text-ink border-l-4 border-matcha pl-3">店家管理</h2>
+                    <button onclick="openShopForm()" class="bg-matcha text-white px-4 py-2 rounded shadow hover:bg-matcha-dark flex items-center gap-2 transition">
+                        <i class="fa-solid fa-plus"></i> 新增店家
+                    </button>
+                </div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            `;
+            
+            state.shops.forEach(shop => {
+                html += `
+                    <div class="border rounded-lg p-4 shadow-sm bg-white hover:border-matcha transition relative">
+                        <div class="absolute top-2 right-2 flex gap-1">
+                            <button onclick="openShopForm('${shop.id}')" class="w-8 h-8 rounded bg-gray-100 text-ink hover:bg-gray-200 flex items-center justify-center"><i class="fa-solid fa-pen text-sm"></i></button>
+                            <button onclick="deleteShop('${shop.id}')" class="w-8 h-8 rounded bg-red-50 text-red-500 hover:bg-red-100 flex items-center justify-center"><i class="fa-solid fa-trash text-sm"></i></button>
+                        </div>
+                        <h3 class="font-bold text-lg mb-1 pr-20">${shop.name} ${shop.isOpen === false ? '<span class="text-xs bg-red-100 text-red-600 px-2 py-0.5 rounded ml-2 align-middle">休息中</span>' : ''}</h3>
+                        <p class="text-sm text-gray-500 mb-3 h-10 overflow-hidden">${shop.description || '無描述'}</p>
+                        ${shop.menuImageUrl ? `<div class="text-xs text-blue-500 cursor-pointer mb-2" onclick="showImageModal('${shop.menuImageUrl}')"><i class="fa-regular fa-image"></i> 檢視菜單原圖</div>` : ''}
+                        <div class="text-xs text-gray-400 border-t pt-2 mt-2">
+                            品項數量：${state.menus.filter(m => m.shopId === shop.id).length}
+                        </div>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+            return html;
+        }
+
+        window.openShopForm = (id = null) => {
+            const shop = id ? state.shops.find(s => s.id === id) : { name: '', description: '', menuImageUrl: '', isOpen: true };
+            const title = id ? '編輯店家' : '新增店家';
+            
+            const html = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">店家名稱 *</label>
+                        <input type="text" id="shop-name" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${shop.name}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">描述/公告</label>
+                        <textarea id="shop-desc" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" rows="2">${shop.description}</textarea>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">實體菜單圖片網址 (選填)</label>
+                        <input type="text" id="shop-img" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${shop.menuImageUrl || ''}" placeholder="https://...">
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="checkbox" id="shop-status" ${shop.isOpen !== false ? 'checked' : ''} class="w-4 h-4 text-matcha focus:ring-matcha border-gray-300 rounded">
+                        <label for="shop-status" class="text-sm font-bold text-gray-700">開放訂購 (營業中)</label>
+                    </div>
+                </div>
+            `;
+            
+            showModal(title, html, async () => {
+                const data = {
+                    name: document.getElementById('shop-name').value.trim(),
+                    description: document.getElementById('shop-desc').value.trim(),
+                    menuImageUrl: document.getElementById('shop-img').value.trim(),
+                    isOpen: document.getElementById('shop-status').checked
+                };
+                if (!data.name) return alert('請填寫店家名稱');
+                
+                try {
+                    if (id) await updateDoc(doc(db, PATH_SHOPS, id), data);
+                    else await addDoc(collection(db, PATH_SHOPS), data);
+                } catch (e) { console.error(e); alert('儲存失敗'); }
+            }, true);
+        };
+
+        window.deleteShop = async (id) => {
+            const hasMenus = state.menus.some(m => m.shopId === id);
+            if(hasMenus) return showModal('無法刪除', '此店家底下還有飲品項目，請先刪除所有飲品再刪除店家。');
+            
+            if(confirm('確定要刪除此店家嗎？')) {
+                try { await deleteDoc(doc(db, PATH_SHOPS, id)); } 
+                catch (e) { console.error(e); alert('刪除失敗'); }
+            }
+        };
+
+        // --- Admin: Menus (with AI Scan) ---
+        function renderAdminMenus() {
+            const shopOptions = state.shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            
+            let html = `
+                <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                    <h2 class="text-2xl font-bold font-serif text-ink border-l-4 border-matcha pl-3">菜單管理</h2>
+                    <div class="flex flex-wrap gap-2">
+                        <button onclick="triggerAIScan()" class="bg-gradient-to-r from-purple-500 to-indigo-500 text-white px-3 sm:px-4 py-2 rounded shadow hover:from-purple-600 hover:to-indigo-600 flex items-center gap-2 transition text-sm sm:text-base">
+                            <i class="fa-solid fa-wand-magic-sparkles"></i> <span>✨ AI 掃描匯入</span>
+                        </button>
+                        <button onclick="openMenuForm()" class="bg-matcha text-white px-3 sm:px-4 py-2 rounded shadow hover:bg-matcha-dark flex items-center gap-2 transition text-sm sm:text-base">
+                            <i class="fa-solid fa-plus"></i> <span>新增單一品項</span>
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-4 max-w-xs">
+                    <label class="block text-xs font-bold text-gray-500 mb-1">篩選店家</label>
+                    <select id="admin-menu-filter" onchange="renderAdminMenusTable(this.value)" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-gray-50">
+                        <option value="all">-- 顯示所有店家 --</option>
+                        ${shopOptions}
+                    </select>
+                </div>
+                
+                <div id="admin-menu-table-container"></div>
+            `;
+            
+            // Need to wait for DOM to insert table
+            setTimeout(() => renderAdminMenusTable('all'), 0);
+            return html;
+        }
+
+        window.renderAdminMenusTable = (shopIdFilter) => {
+            const container = document.getElementById('admin-menu-table-container');
+            if (!container) return;
+
+            let filteredMenus = state.menus;
+            if (shopIdFilter !== 'all') {
+                filteredMenus = state.menus.filter(m => m.shopId === shopIdFilter);
+            }
+
+            if (filteredMenus.length === 0) {
+                container.innerHTML = `<div class="text-center py-10 border rounded bg-gray-50 text-gray-400">目前沒有品項資料</div>`;
+                return;
+            }
+
+            // Group by shop then category for nice display
+            let tableHtml = `
+                <div class="overflow-x-auto border rounded-lg shadow-sm">
+                    <table class="w-full text-left text-sm whitespace-nowrap">
+                        <thead class="bg-gray-100 text-gray-600">
+                            <tr>
+                                <th class="p-3">所屬店家</th>
+                                <th class="p-3">分類</th>
+                                <th class="p-3">品名</th>
+                                <th class="p-3 text-right">價格</th>
+                                <th class="p-3 text-center">狀態</th>
+                                <th class="p-3 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+            `;
+
+            filteredMenus.forEach(item => {
+                const shop = state.shops.find(s => s.id === item.shopId);
+                const shopName = shop ? shop.name : '<span class="text-red-500">未知店家</span>';
+                tableHtml += `
+                    <tr class="hover:bg-gray-50 transition">
+                        <td class="p-3 text-gray-500">${shopName}</td>
+                        <td class="p-3"><span class="bg-wood/20 text-wood-dark px-2 py-1 rounded text-xs">${item.category || '未分類'}</span></td>
+                        <td class="p-3 font-bold text-ink">${item.name}</td>
+                        <td class="p-3 text-right font-bold text-matcha-dark">$${item.price}</td>
+                        <td class="p-3 text-center">
+                            ${item.isAvailable === false ? `<span class="text-red-500 text-xs border border-red-500 px-2 py-1 rounded">已下架</span>` : `<span class="text-green-600 text-xs">供應中</span>`}
+                        </td>
+                        <td class="p-3 text-center">
+                            <button onclick="openMenuForm('${item.id}')" class="text-blue-500 hover:text-blue-700 mr-2" title="編輯"><i class="fa-solid fa-pen"></i></button>
+                            <button onclick="deleteMenu('${item.id}')" class="text-red-500 hover:text-red-700" title="刪除"><i class="fa-solid fa-trash"></i></button>
+                        </td>
+                    </tr>
+                `;
+            });
+            tableHtml += `</tbody></table></div>`;
+            container.innerHTML = tableHtml;
+        };
+
+        window.openMenuForm = (id = null) => {
+            if (state.shops.length === 0) return showModal('提示', '請先建立店家再新增品項。');
+            
+            const item = id ? state.menus.find(m => m.id === id) : { shopId: state.shops[0].id, name: '', price: 0, category: '精選飲品', description: '', isAvailable: true };
+            const title = id ? '編輯飲品' : '新增飲品';
+            
+            const shopOptions = state.shops.map(s => `<option value="${s.id}" ${item.shopId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
+
+            const html = `
+                <div class="space-y-4">
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">所屬店家 *</label>
+                            <select id="item-shop" class="w-full border p-2 rounded focus:border-matcha focus:outline-none">${shopOptions}</select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">分類 (如：茶類、果汁)</label>
+                            <input type="text" id="item-cat" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.category}">
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-3 gap-4">
+                        <div class="col-span-2">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">飲品名稱 *</label>
+                            <input type="text" id="item-name" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.name}">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">價格 *</label>
+                            <input type="number" id="item-price" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.price}">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">簡單描述 (選填)</label>
+                        <input type="text" id="item-desc" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.description || ''}">
+                    </div>
+                    <div class="flex items-center gap-2 mt-2">
+                        <input type="checkbox" id="item-status" ${item.isAvailable !== false ? 'checked' : ''} class="w-4 h-4 text-matcha focus:ring-matcha border-gray-300 rounded">
+                        <label for="item-status" class="text-sm font-bold text-gray-700">上架供應中</label>
+                    </div>
+                </div>
+            `;
+            
+            showModal(title, html, async () => {
+                const data = {
+                    shopId: document.getElementById('item-shop').value,
+                    category: document.getElementById('item-cat').value.trim() || '未分類',
+                    name: document.getElementById('item-name').value.trim(),
+                    price: parseInt(document.getElementById('item-price').value) || 0,
+                    description: document.getElementById('item-desc').value.trim(),
+                    isAvailable: document.getElementById('item-status').checked
+                };
+                if (!data.name || data.price <= 0) return alert('請填寫正確的名稱與價格');
+                
+                try {
+                    if (id) await updateDoc(doc(db, PATH_MENUS, id), data);
+                    else await addDoc(collection(db, PATH_MENUS), data);
+                } catch (e) { console.error(e); alert('儲存失敗'); }
+            }, true);
+        };
+
+        window.deleteMenu = async (id) => {
+            if(confirm('確定要刪除此飲品嗎？')) {
+                try { await deleteDoc(doc(db, PATH_MENUS, id)); } 
+                catch (e) { console.error(e); alert('刪除失敗'); }
+            }
+        };
+
+        // --- AI Scan Feature ---
+        let tempScanShopId = null;
+
+        window.triggerAIScan = () => {
+            if (state.shops.length === 0) return showModal('提示', '請先前往「店家管理」建立至少一家店家，才能匯入菜單。');
+            
+            const shopOptions = state.shops.map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+            const html = `
+                <div class="space-y-4">
+                    <div class="bg-purple-50 text-purple-800 p-4 rounded-lg text-sm mb-2 border border-purple-200">
+                        <h4 class="font-bold mb-1"><i class="fa-solid fa-robot"></i> 什麼是 AI 掃描匯入？</h4>
+                        <p>只要上傳一張實體菜單的照片或截圖，系統將呼叫 Gemini AI 自動幫您把圖片中的文字（品名、價格、分類）擷取出來，轉換成數位菜單格式，讓您一鍵匯入！</p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">1. 選擇要匯入的店家</label>
+                        <select id="ai-scan-shop" class="w-full border p-2 rounded focus:outline-none focus:border-purple-400 bg-white shadow-sm">${shopOptions}</select>
+                    </div>
+                </div>
+            `;
+            showModal('✨ AI 智慧菜單掃描', html, () => {
+                tempScanShopId = document.getElementById('ai-scan-shop').value;
+                document.getElementById('ai-menu-upload').click();
+            }, false, '2. 選擇圖片開始掃描', 'bg-purple-600 hover:bg-purple-700');
+        };
+
+        window.processMenuImage = async (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+            event.target.value = ''; // Reset
+
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                const base64Data = e.target.result;
+                
+                showModal('AI 辨識中', `
+                    <div class="text-center py-10">
+                        <i class="fa-solid fa-wand-magic-sparkles text-5xl text-purple-500 mb-6 animate-pulse"></i>
+                        <h3 class="text-xl font-bold text-gray-800 mb-2">正在解析菜單內容...</h3>
+                        <p class="text-gray-500 text-sm">呼叫 Gemini AI 視覺模型中，大約需要 5-10 秒鐘。</p>
+                    </div>
+                `);
+                
+                try {
+                    const apiKey = ""; // Canvas provides key
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+                    
+                    const prompt = `你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。
+                    請回傳一個 JSON 陣列，每個元素必須包含以下屬性：
+                    - name (字串): 飲料名稱
+                    - price (數字): 價格 (請提取純數字)
+                    - category (字串): 飲料分類 (如果菜單上有分類標題就使用該標題，否則填寫 "未分類")
+                    
+                    必須確保輸出的格式為純 JSON 陣列，不包含任何 Markdown 標記或 \`\`\`json 標籤，請直接輸出 [{}, {}] 的格式。如果圖中沒有菜單，請回傳 []。`;
+
+                    const payload = {
+                        contents: [{
+                            role: "user",
+                            parts: [
+                                { text: prompt },
+                                { inlineData: { mimeType: file.type, data: base64Data.split(',')[1] } }
+                            ]
+                        }],
+                        generationConfig: { responseMimeType: "application/json" }
+                    };
+
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if(!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0) {
+                        let jsonText = result.candidates[0].content.parts[0].text;
+                        // Basic cleanup in case AI still adds markdown
+                        jsonText = jsonText.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const items = JSON.parse(jsonText);
+                        renderScannedPreview(items);
+                    } else {
+                        throw new Error('API 沒有回傳有效的內容');
+                    }
+
+                } catch (error) {
+                    console.error("AI Scan Error:", error);
+                    showModal('掃描失敗', '<div class="text-center py-6 text-red-500"><i class="fa-solid fa-triangle-exclamation text-4xl mb-3"></i><p>無法辨識菜單圖片，可能是圖片不夠清晰或 API 異常。</p></div>');
+                }
+            };
+            reader.readAsDataURL(file);
+        };
+
+        window.renderScannedPreview = (items) => {
+            if (!Array.isArray(items) || items.length === 0) {
+                return showModal('掃描結果', '未能從圖片中找到任何飲品品項，請確認上傳的圖片是菜單。');
+            }
+
+            let html = `
+                <div class="mb-3 text-sm text-gray-600 bg-yellow-50 p-2 rounded border border-yellow-200">
+                    <i class="fa-solid fa-circle-info"></i> AI 已成功擷取 <b>${items.length}</b> 個品項。您可以直接點擊下方表格修改錯字或價格，確認無誤後點擊匯入。
+                </div>
+                <div class="max-h-[50vh] overflow-y-auto no-scrollbar border rounded shadow-inner">
+                    <table class="w-full text-left border-collapse text-sm">
+                        <thead class="bg-purple-100 sticky top-0 z-10 text-purple-900 shadow-sm">
+                            <tr>
+                                <th class="p-2 border-b w-1/4">分類</th>
+                                <th class="p-2 border-b w-1/2">品名</th>
+                                <th class="p-2 border-b w-1/4">價格</th>
+                                <th class="p-2 border-b text-center"><i class="fa-solid fa-trash-can text-gray-500"></i></th>
+                            </tr>
+                        </thead>
+                        <tbody id="scanned-items-tbody" class="bg-white">
+            `;
+
+            items.forEach((item, idx) => {
+                html += `
+                    <tr id="scan-row-${idx}" class="hover:bg-gray-50 border-b last:border-0 group">
+                        <td class="p-1"><input type="text" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-xs outline-none" id="scan-cat-${idx}" value="${item.category || '未分類'}"></td>
+                        <td class="p-1"><input type="text" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm font-bold outline-none" id="scan-name-${idx}" value="${item.name}"></td>
+                        <td class="p-1"><input type="number" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm outline-none text-right pr-2" id="scan-price-${idx}" value="${item.price || 0}"></td>
+                        <td class="p-1 text-center"><button onclick="document.getElementById('scan-row-${idx}').remove()" class="text-gray-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-xmark"></i></button></td>
+                    </tr>
+                `;
+            });
+
+            html += `</tbody></table></div>`;
+
+            showModal('請確認辨識結果', html, () => {
+                const tbody = document.getElementById('scanned-items-tbody');
+                const rows = tbody.querySelectorAll('tr');
+                const finalItems = [];
+
+                rows.forEach(row => {
+                    const idx = row.id.split('-')[2];
+                    const cat = document.getElementById(`scan-cat-${idx}`).value.trim();
+                    const name = document.getElementById(`scan-name-${idx}`).value.trim();
+                    const price = parseInt(document.getElementById(`scan-price-${idx}`).value) || 0;
+                    if (name && price > 0) {
+                        finalItems.push({ category: cat, name, price, shopId: tempScanShopId, isAvailable: true, description: '' });
+                    }
+                });
+
+                if (finalItems.length === 0) return showModal('提示', '沒有有效的品項可以新增。');
+
+                // Async save
+                showModal('儲存中', '<div class="text-center py-8"><div class="loader mx-auto mb-4"></div><p>正在將品項寫入資料庫...</p></div>');
+                
+                setTimeout(async () => {
+                    try {
+                        const promises = finalItems.map(item => addDoc(collection(db, PATH_MENUS), item));
+                        await Promise.all(promises);
+                        showModal('匯入成功', `<div class="text-center"><i class="fa-solid fa-circle-check text-5xl text-matcha mb-4"></i><p class="text-lg">太棒了！</p><p>已成功為店家匯入 <b>${finalItems.length}</b> 個品項！</p></div>`);
+                    } catch (e) {
+                        console.error("Batch add error", e);
+                        showModal('錯誤', '部分品項儲存失敗。');
+                    }
+                }, 500);
+
+            }, true, '確認並匯入資料', 'bg-purple-600 hover:bg-purple-700');
+        };
+
+        // --- Admin: Accounts ---
+        function renderAdminAccounts() {
+            if (state.adminUser.role !== 'super_admin') return `<p class="text-red-500">權限不足</p>`;
+
+            let html = `
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold font-serif text-ink border-l-4 border-matcha pl-3">帳號管理 (Super Admin)</h2>
+                    <button onclick="openAccountForm()" class="bg-ink text-white px-4 py-2 rounded shadow hover:bg-gray-800 flex items-center gap-2 transition">
+                        <i class="fa-solid fa-user-plus"></i> 新增管理員
+                    </button>
+                </div>
+                <div class="bg-gray-50 border rounded-lg overflow-hidden shadow-sm">
+                    <table class="w-full text-left">
+                        <thead class="bg-gray-200 text-gray-700">
+                            <tr>
+                                <th class="p-3">帳號 (Username)</th>
+                                <th class="p-3">密碼</th>
+                                <th class="p-3">權限角色</th>
+                                <th class="p-3 text-center">操作</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200 bg-white">
+            `;
+            
+            state.admins.forEach(admin => {
+                const isMe = admin.id === state.adminUser.id;
+                html += `
+                    <tr class="hover:bg-gray-50">
+                        <td class="p-3 font-bold">${admin.username} ${isMe ? '<span class="text-xs bg-matcha text-white px-2 py-0.5 rounded ml-2">我</span>' : ''}</td>
+                        <td class="p-3 text-gray-400 font-mono text-sm">${admin.password}</td>
+                        <td class="p-3">${admin.role === 'super_admin' ? '<span class="text-purple-600 font-bold text-xs border border-purple-200 bg-purple-50 px-2 py-1 rounded">Super Admin</span>' : '<span class="text-blue-600 text-xs border border-blue-200 bg-blue-50 px-2 py-1 rounded">一般管理員</span>'}</td>
+                        <td class="p-3 text-center">
+                            <button onclick="openAccountForm('${admin.id}')" class="text-blue-500 hover:text-blue-700 mr-3"><i class="fa-solid fa-pen"></i></button>
+                            ${!isMe ? `<button onclick="deleteAccount('${admin.id}')" class="text-red-500 hover:text-red-700"><i class="fa-solid fa-trash"></i></button>` : ''}
+                        </td>
+                    </tr>
+                `;
+            });
+            html += `</tbody></table></div>`;
+            return html;
+        }
+
+        window.openAccountForm = (id = null) => {
+            const acc = id ? state.admins.find(a => a.id === id) : { username: '', password: '', role: 'admin' };
+            const title = id ? '編輯管理員' : '新增管理員';
+            
+            const html = `
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">登入帳號 *</label>
+                        <input type="text" id="acc-user" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${acc.username}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">登入密碼 *</label>
+                        <input type="text" id="acc-pass" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${acc.password}">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">權限角色</label>
+                        <select id="acc-role" class="w-full border p-2 rounded focus:border-matcha focus:outline-none bg-white">
+                            <option value="admin" ${acc.role === 'admin' ? 'selected' : ''}>一般管理員 (僅管訂單、菜單)</option>
+                            <option value="super_admin" ${acc.role === 'super_admin' ? 'selected' : ''}>Super Admin (可管理帳號)</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            showModal(title, html, async () => {
+                const data = {
+                    username: document.getElementById('acc-user').value.trim(),
+                    password: document.getElementById('acc-pass').value.trim(),
+                    role: document.getElementById('acc-role').value
+                };
+                if (!data.username || !data.password) return alert('帳號密碼不可為空');
+                
+                try {
+                    if (id) await updateDoc(doc(db, PATH_ADMINS, id), data);
+                    else await addDoc(collection(db, PATH_ADMINS), data);
+                } catch (e) { console.error(e); alert('儲存失敗'); }
+            }, true);
+        };
+
+        window.deleteAccount = async (id) => {
+            if(confirm('確定要刪除此帳號嗎？')) {
+                try { await deleteDoc(doc(db, PATH_ADMINS, id)); } 
+                catch (e) { console.error(e); alert('刪除失敗'); }
+            }
+        };
+
+        // --- Admin: Settings (Change Password) ---
+        function renderAdminSettings() {
+            return `
+                <h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">個人設定</h2>
+                <div class="max-w-md bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm">
+                    <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-key mr-2"></i>修改我的密碼</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-600 mb-1">新密碼</label>
+                            <input type="password" id="setting-new-pass" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-white">
+                        </div>
+                        <button onclick="changeMyPassword()" class="w-full bg-matcha text-white py-2 rounded shadow hover:bg-matcha-dark transition font-bold">儲存新密碼</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        window.changeMyPassword = async () => {
+            const newPass = document.getElementById('setting-new-pass').value.trim();
+            if (!newPass || newPass.length < 4) return alert('密碼太短');
+            
+            try {
+                await updateDoc(doc(db, PATH_ADMINS, state.adminUser.id), { password: newPass });
+                state.adminUser.password = newPass;
+                alert('密碼修改成功！');
+                document.getElementById('setting-new-pass').value = '';
+            } catch (e) {
+                console.error(e); alert('修改失敗');
+            }
+        };
+
+        // ==========================================
+        // 9. Utility UI Functions (Modal)
+        // ==========================================
+        let currentModalConfirmCallback = null;
+        let keepModalOpenFlag = false;
+
+        window.showModal = (title, htmlBody, confirmCallback = null, showCancel = false, confirmText = '確定', confirmBtnClass = '') => {
+            document.getElementById('modal-title').textContent = title;
+            document.getElementById('modal-body').innerHTML = htmlBody;
+            
+            const cancelBtn = document.getElementById('modal-cancel-btn');
+            const confirmBtn = document.getElementById('modal-confirm-btn');
+            
+            if (showCancel) cancelBtn.classList.remove('hidden');
+            else cancelBtn.classList.add('hidden');
+
+            confirmBtn.textContent = confirmText;
+            // Reset classes
+            confirmBtn.className = `px-4 py-2 text-white rounded transition shadow ${confirmBtnClass || 'bg-matcha hover:bg-matcha-dark'}`;
+            
+            currentModalConfirmCallback = confirmCallback;
+            keepModalOpenFlag = false;
+            
+            document.getElementById('global-modal').classList.remove('hidden');
+        };
+
+        window.closeModal = () => {
+            document.getElementById('global-modal').classList.add('hidden');
+            currentModalConfirmCallback = null;
+        };
+
+        document.getElementById('modal-confirm-btn').addEventListener('click', () => {
+            if (currentModalConfirmCallback) {
+                currentModalConfirmCallback();
+            }
+            if (!keepModalOpenFlag) {
+                closeModal();
+            }
+        });
+
+    </script>
+</body>
+</html>
