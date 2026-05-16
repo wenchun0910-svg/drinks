@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-       const firebaseConfig = {
+     const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -996,7 +996,7 @@
                 `);
                 
                 try {
-                    const canvasApiKey = ""; // Canvas 內部環境會自動注入
+                    const apiKey = ""; // 必須維持這個變數名稱，Canvas 內部環境才會自動注入
                     const customKey = localStorage.getItem('custom_gemini_key');
                     
                     let apiUrl = '';
@@ -1004,8 +1004,8 @@
                         // 外部環境 (如本機端)：使用用戶自訂金鑰與正式版模型
                         apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${customKey}`;
                     } else {
-                        // Canvas 測試環境：使用空金鑰與環境專屬的 preview 模型
-                        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${canvasApiKey}`;
+                        // Canvas 測試環境：使用注入的金鑰與環境專屬的 preview 模型
+                        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
                     }
 
                     const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果是空菜單請回傳空陣列。";
