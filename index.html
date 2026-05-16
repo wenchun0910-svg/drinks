@@ -432,9 +432,9 @@
 
         window.openCustomizeModal = (id, name, priceM, priceL, oldPrice) => {
             let sizeOptions = '';
-            if (priceM) sizeOptions += `<option value="M|${priceM}">中杯 (M) - $${priceM}</option>`;
-            if (priceL) sizeOptions += `<option value="L|${priceL}" ${!priceM ? 'selected' : ''}>大杯 (L) - $${priceL}</option>`;
-            if (!priceM && !priceL) sizeOptions += `<option value="預設|${oldPrice}">單一大小 - $${oldPrice}</option>`;
+            if (priceM) sizeOptions += `<option value="M|${priceM}" ${!priceL ? 'selected' : ''}>中杯 (M) - $${priceM}</option>`;
+            if (priceL) sizeOptions += `<option value="L|${priceL}" selected>大杯 (L) - $${priceL}</option>`;
+            if (!priceM && !priceL) sizeOptions += `<option value="預設|${oldPrice}" selected>單一大小 - $${oldPrice}</option>`;
 
             const html = `
                 <div class="space-y-4">
@@ -449,7 +449,7 @@
                         <label class="block text-sm font-bold text-gray-700 mb-1">冰塊</label>
                         <select id="cust-ice" class="w-full border p-2 rounded bg-white focus:border-matcha outline-none">
                             <option value="正常冰">正常冰</option>
-                            <option value="少冰">少冰</option>
+                            <option value="少冰" selected>少冰</option>
                             <option value="微冰">微冰</option>
                             <option value="去冰">去冰</option>
                             <option value="熱">熱</option>
@@ -461,7 +461,7 @@
                             <option value="正常糖">正常糖</option>
                             <option value="少糖">少糖 (7分)</option>
                             <option value="半糖">半糖 (5分)</option>
-                            <option value="微糖">微糖 (3分)</option>
+                            <option value="微糖" selected>微糖 (3分)</option>
                             <option value="無糖">無糖</option>
                         </select>
                     </div>
