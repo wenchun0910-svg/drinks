@@ -47,7 +47,7 @@
                 <div class="w-10 h-10 bg-matcha rounded-full flex items-center justify-center text-white text-xl">
                     <i class="fa-solid fa-leaf"></i>
                 </div>
-                <h1 class="text-2xl font-bold font-serif text-matcha-dark hidden sm:block">和風茶屋</h1>
+                <h1 id="site-name-display" class="text-2xl font-bold font-serif text-matcha-dark hidden sm:block">和風茶屋</h1>
             </div>
             
             <div id="nav-customer-controls" class="flex items-center gap-4 flex-1 justify-end">
@@ -86,7 +86,7 @@
 
     <!-- Footer -->
     <footer class="bg-ink text-paper text-center py-6 mt-auto">
-        <p class="text-sm">&copy; <span id="current-year"></span> 和風茶屋訂購系統. All rights reserved.</p>
+        <p class="text-sm">&copy; <span id="current-year"></span> <span id="footer-site-name">和風茶屋</span>訂購系統. All rights reserved.</p>
     </footer>
 
     <!-- Global Modal -->
@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-     const firebaseConfig = {
+  const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -169,6 +169,7 @@
         const PATH_MENUS = `artifacts/${appId}/public/data/menus`;
         const PATH_ORDERS = `artifacts/${appId}/public/data/orders`;
         const PATH_ADMINS = `artifacts/${appId}/public/data/admins`;
+        const PATH_SETTINGS = `artifacts/${appId}/public/data/settings`;
 
         // ==========================================
         // 2. State Management
@@ -181,7 +182,8 @@
             cart: [],
             currentShopId: null,
             adminUser: null, // null if not logged in
-            currentAdminTab: 'orders'
+            currentAdminTab: 'orders',
+            siteName: '和風茶屋'
         };
 
         // ==========================================
@@ -251,6 +253,22 @@
                 state.admins = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
                 reRenderCurrentView();
             }, (error) => console.error("Error fetching admins:", error));
+
+            // 監聽網站設定 (名稱)
+            onSnapshot(doc(db, PATH_SETTINGS, 'general'), (docSnap) => {
+                if (docSnap.exists() && docSnap.data().name) {
+                    state.siteName = docSnap.data().name;
+                } else {
+                    state.siteName = '和風茶屋';
+                }
+                
+                // 更新畫面上的名稱
+                document.title = `${state.siteName} - 飲料訂購系統`;
+                const navName = document.getElementById('site-name-display');
+                if (navName) navName.textContent = state.siteName;
+                const footerName = document.getElementById('footer-site-name');
+                if (footerName) footerName.textContent = state.siteName;
+            }, (error) => console.error("Error fetching settings:", error));
 
             setTimeout(hideLoading, 1000); // Give data a moment to load
         }
@@ -412,8 +430,8 @@
                                     ${item.description ? `<p class="text-sm text-gray-500 mt-2">${item.description}</p>` : ''}
                                 </div>
                                 <div class="bg-gray-50 p-3 border-t">
-                                    <button onclick="addToCart('${item.id}', '${item.name}', ${item.price})" class="w-full bg-white border border-matcha text-matcha py-2 rounded hover:bg-matcha hover:text-white transition font-bold group-hover:bg-matcha group-hover:text-white">
-                                        <i class="fa-solid fa-plus mr-1"></i> 加入購物車
+                                    <button onclick="openCustomizeModal('${item.id}', '${item.name}', ${item.price})" class="w-full bg-white border border-matcha text-matcha py-2 rounded hover:bg-matcha hover:text-white transition font-bold group-hover:bg-matcha group-hover:text-white">
+                                        <i class="fa-solid fa-plus mr-1"></i> 選擇甜度冰塊
                                     </button>
                                 </div>
                             </div>
@@ -429,15 +447,70 @@
             showModal('菜單預覽', `<img src="${url}" class="w-full rounded" style="max-height: 70vh; object-fit: contain;">`);
         };
 
+        // 開啟客製化選項彈窗
+        window.openCustomizeModal = (id, name, price) => {
+            const html = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center border-b pb-2">
+                        <h3 class="font-bold text-xl text-ink">${name}</h3>
+                        <span class="text-matcha-dark font-bold text-lg">$${price}</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">冰塊</label>
+                        <select id="cust-ice" class="w-full border p-2 rounded bg-white focus:border-matcha outline-none">
+                            <option value="正常冰">正常冰</option>
+                            <option value="少冰">少冰</option>
+                            <option value="微冰">微冰</option>
+                            <option value="去冰">去冰</option>
+                            <option value="熱">熱</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">甜度</label>
+                        <select id="cust-sugar" class="w-full border p-2 rounded bg-white focus:border-matcha outline-none">
+                            <option value="正常糖">正常糖</option>
+                            <option value="少糖">少糖 (7分)</option>
+                            <option value="半糖">半糖 (5分)</option>
+                            <option value="微糖">微糖 (3分)</option>
+                            <option value="無糖">無糖</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">加料選項 (可選)</label>
+                        <select id="cust-topping" class="w-full border p-2 rounded bg-white focus:border-matcha outline-none">
+                            <option value="無|0">不加料</option>
+                            <option value="珍珠|10">加珍珠 (+$10)</option>
+                            <option value="椰果|10">加椰果 (+$10)</option>
+                            <option value="仙草|10">加仙草 (+$10)</option>
+                        </select>
+                    </div>
+                </div>
+            `;
+            
+            showModal('選擇客製化選項', html, () => {
+                const ice = document.getElementById('cust-ice').value;
+                const sugar = document.getElementById('cust-sugar').value;
+                const toppingArr = document.getElementById('cust-topping').value.split('|');
+                const topping = toppingArr[0];
+                const toppingPrice = parseInt(toppingArr[1]);
+                
+                addToCart(id, name, price, ice, sugar, topping, toppingPrice);
+            }, true, '確認並加入購物車');
+        };
+
         // ==========================================
         // 7. Cart & Ordering Logic
         // ==========================================
-        window.addToCart = (id, name, price) => {
-            const existing = state.cart.find(item => item.id === id);
+        window.addToCart = (id, name, basePrice, ice, sugar, topping, toppingPrice) => {
+            const finalPrice = basePrice + toppingPrice;
+            // 產生購物車項目的獨特標記，確保相同選項的飲料會合併數量，不同選項則分開列出
+            const cartKey = `${id}-${ice}-${sugar}-${topping}`;
+            
+            const existing = state.cart.find(item => item.cartKey === cartKey);
             if (existing) {
                 existing.qty += 1;
             } else {
-                state.cart.push({ id, name, price, qty: 1 });
+                state.cart.push({ cartKey, id, name, price: finalPrice, qty: 1, ice, sugar, topping });
             }
             updateCartUI();
             
@@ -479,16 +552,22 @@
             cartItemsEl.innerHTML = state.cart.map((item, index) => {
                 const subtotal = item.price * item.qty;
                 total += subtotal;
+                
+                // 組合客製化文字
+                let variantText = `${item.ice || '預設'}, ${item.sugar || '預設'}`;
+                if (item.topping && item.topping !== '無') variantText += `, +${item.topping}`;
+                
                 return `
                     <div class="bg-white p-3 rounded shadow-sm border border-gray-100 flex justify-between items-center">
-                        <div class="flex-1">
+                        <div class="flex-1 pr-2">
                             <h4 class="font-bold text-ink text-sm sm:text-base">${item.name}</h4>
-                            <div class="text-matcha-dark font-bold text-sm">$${item.price}</div>
+                            <div class="text-xs text-gray-500 mt-0.5">${variantText}</div>
+                            <div class="text-matcha-dark font-bold text-sm mt-1">$${item.price}</div>
                         </div>
-                        <div class="flex items-center gap-3">
-                            <button onclick="updateCartQty(${index}, -1)" class="w-8 h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition"><i class="fa-solid fa-minus text-xs"></i></button>
+                        <div class="flex items-center gap-2 sm:gap-3 shrink-0">
+                            <button onclick="updateCartQty(${index}, -1)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-gray-100 text-gray-600 hover:bg-gray-200 flex items-center justify-center transition"><i class="fa-solid fa-minus text-xs"></i></button>
                             <span class="w-4 text-center font-bold text-ink">${item.qty}</span>
-                            <button onclick="updateCartQty(${index}, 1)" class="w-8 h-8 rounded-full bg-matcha-light text-white hover:bg-matcha flex items-center justify-center transition"><i class="fa-solid fa-plus text-xs"></i></button>
+                            <button onclick="updateCartQty(${index}, 1)" class="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-matcha-light text-white hover:bg-matcha flex items-center justify-center transition"><i class="fa-solid fa-plus text-xs"></i></button>
                         </div>
                     </div>
                 `;
@@ -679,12 +758,23 @@
                         
                         <div class="bg-gray-50 rounded p-3 mb-4 border text-sm">
                             <ul class="space-y-1">
-                                ${order.items.map(i => `
-                                    <li class="flex justify-between border-b border-dashed border-gray-200 pb-1 last:border-0 last:pb-0">
-                                        <span>${i.name}</span>
-                                        <span class="text-gray-600">x${i.qty} &nbsp; ($${i.price * i.qty})</span>
+                                ${order.items.map(i => {
+                                    // 組合後台顯示的客製化文字
+                                    let vText = '';
+                                    if(i.ice && i.sugar) {
+                                        vText = `${i.ice}, ${i.sugar}`;
+                                        if (i.topping && i.topping !== '無') vText += `, +${i.topping}`;
+                                    }
+                                    return `
+                                    <li class="flex justify-between border-b border-dashed border-gray-200 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
+                                        <div>
+                                            <div class="font-bold text-ink">${i.name}</div>
+                                            ${vText ? `<div class="text-xs text-gray-500">${vText}</div>` : ''}
+                                        </div>
+                                        <span class="text-gray-600 whitespace-nowrap mt-1">x${i.qty} &nbsp; ($${i.price * i.qty})</span>
                                     </li>
-                                `).join('')}
+                                    `;
+                                }).join('')}
                             </ul>
                         </div>
                         
@@ -1000,16 +1090,10 @@
                 `);
                 
                 try {
-                    const apiKey = ""; // 必須維持這個變數名稱，Canvas 內部環境才會自動注入
-                    
-                    let apiUrl = '';
-                    if (customKey) {
-                        // 外部環境 (如本機端)：使用用戶自訂金鑰與正式版模型
-                        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${customKey}`;
-                    } else {
-                        // Canvas 測試環境：使用注入的金鑰與環境專屬的 preview 模型
-                        apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
-                    }
+                    const apiKey = "";
+                    const finalKey = customKey || apiKey;
+                    const modelVersion = customKey ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${finalKey}`;
 
                     const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果是空菜單請回傳空陣列。";
 
@@ -1284,7 +1368,19 @@
         // --- Admin: Settings (Change Password) ---
         function renderAdminSettings() {
             return `
-                <h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">個人設定</h2>
+                <h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">系統與個人設定</h2>
+                
+                <div class="max-w-md bg-white p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
+                    <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-store mr-2 text-matcha"></i>系統名稱設定</h3>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-600 mb-1">網站首頁名稱</label>
+                            <input type="text" id="setting-site-name" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-gray-50" value="${state.siteName}">
+                        </div>
+                        <button onclick="saveSiteName()" class="w-full bg-matcha text-white py-2 rounded shadow hover:bg-matcha-dark transition font-bold">更新網站名稱</button>
+                    </div>
+                </div>
+
                 <div class="max-w-md bg-gray-50 p-6 rounded-lg border border-gray-200 shadow-sm mb-6">
                     <h3 class="font-bold text-lg mb-4 text-gray-700"><i class="fa-solid fa-key mr-2"></i>修改我的密碼</h3>
                     <div class="space-y-4">
@@ -1292,7 +1388,7 @@
                             <label class="block text-sm font-bold text-gray-600 mb-1">新密碼</label>
                             <input type="password" id="setting-new-pass" class="w-full border p-2 rounded focus:outline-none focus:border-matcha bg-white">
                         </div>
-                        <button onclick="changeMyPassword()" class="w-full bg-matcha text-white py-2 rounded shadow hover:bg-matcha-dark transition font-bold">儲存新密碼</button>
+                        <button onclick="changeMyPassword()" class="w-full bg-gray-800 text-white py-2 rounded shadow hover:bg-black transition font-bold">儲存新密碼</button>
                     </div>
                 </div>
 
@@ -1308,6 +1404,18 @@
                 </div>
             `;
         }
+
+        window.saveSiteName = async () => {
+            const newName = document.getElementById('setting-site-name').value.trim();
+            if (!newName) return alert('網站名稱不可為空');
+            try {
+                // 使用 setDoc 與 merge 選項，確保文件不存在時會自動建立
+                await setDoc(doc(db, PATH_SETTINGS, 'general'), { name: newName }, { merge: true });
+                alert('網站名稱已成功更新！');
+            } catch (error) {
+                console.error(error); alert('更新失敗');
+            }
+        };
 
         window.saveApiKey = () => {
             const key = document.getElementById('setting-api-key').value.trim();
