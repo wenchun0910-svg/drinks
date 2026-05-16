@@ -987,17 +987,20 @@
             reader.onload = async (e) => {
                 const base64Data = e.target.result;
                 
+                const customKey = localStorage.getItem('custom_gemini_key');
+                const modeText = customKey ? '(目前狀態：使用自訂金鑰)' : '(目前狀態：使用系統內建金鑰)';
+                
                 showModal('AI 辨識中', `
                     <div class="text-center py-10">
                         <i class="fa-solid fa-wand-magic-sparkles text-5xl text-purple-500 mb-6 animate-pulse"></i>
                         <h3 class="text-xl font-bold text-gray-800 mb-2">正在解析菜單內容...</h3>
-                        <p class="text-gray-500 text-sm">呼叫 Gemini AI 視覺模型中，大約需要 5-10 秒鐘。</p>
+                        <p class="text-gray-500 text-sm mb-3">呼叫 Gemini AI 視覺模型中，大約需要 5-10 秒鐘。</p>
+                        <span class="text-xs bg-gray-100 border border-gray-200 text-gray-500 px-3 py-1.5 rounded-full">${modeText}</span>
                     </div>
                 `);
                 
                 try {
                     const apiKey = ""; // 必須維持這個變數名稱，Canvas 內部環境才會自動注入
-                    const customKey = localStorage.getItem('custom_gemini_key');
                     
                     let apiUrl = '';
                     if (customKey) {
@@ -1095,12 +1098,24 @@
 
                 } catch (error) {
                     console.error("AI Scan Error:", error);
+                    
+                    let displayError = error.message;
+                    if (displayError.includes('denied access')) {
+                        displayError = `
+                            <b>專案被拒絕存取 (Denied Access)</b><br><br>
+                            這代表您填寫的「自訂 API Key」對應的 Google 帳號權限異常。<br><br>
+                            💡 <b>解決方案：</b>請關閉此視窗，前往左側「個人設定」，將 API Key 欄位<b>完全清空（不要留任何空白）</b>後點擊儲存，讓系統切換回「內建金鑰」再試一次！
+                        `;
+                    } else if (displayError.includes('unregistered callers')) {
+                         displayError = `缺少有效的 API Key。請確認環境金鑰已注入，或至「個人設定」重新填寫有效的金鑰。`;
+                    }
+
                     showModal('掃描失敗', `
                         <div class="text-center py-6 text-red-500">
                             <i class="fa-solid fa-triangle-exclamation text-4xl mb-3"></i>
                             <p class="text-lg font-bold mb-2">無法辨識菜單圖片</p>
-                            <div class="bg-red-50 p-3 rounded text-sm text-left border border-red-200 text-red-700 max-h-32 overflow-y-auto w-full break-words">
-                                <b>錯誤原因：</b><br>${error.message}
+                            <div class="bg-red-50 p-4 rounded text-sm text-left border border-red-200 text-red-800 max-h-48 overflow-y-auto w-full break-words">
+                                ${displayError}
                             </div>
                         </div>
                     `);
