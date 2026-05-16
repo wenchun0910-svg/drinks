@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-  const firebaseConfig = {
+      const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -159,6 +159,7 @@
   messagingSenderId: "565299908319",
   appId: "1:565299908319:web:0ce7b6a2412a30d57c636a"
 };
+
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
@@ -424,13 +425,17 @@
                             <div class="bg-white rounded-lg shadow-sm border border-gray-100 hover:shadow-md transition overflow-hidden flex flex-col relative group">
                                 <div class="p-5 flex-1">
                                     <div class="flex justify-between items-start mb-2">
-                                        <h4 class="text-lg font-bold text-ink">${item.name}</h4>
-                                        <span class="text-matcha-dark font-bold text-lg">$${item.price}</span>
+                                        <h4 class="text-lg font-bold text-ink pr-2">${item.name}</h4>
+                                        <div class="text-right shrink-0">
+                                            ${item.priceM ? `<div class="text-matcha-dark font-bold text-sm">M: $${item.priceM}</div>` : ''}
+                                            ${item.priceL ? `<div class="text-matcha-dark font-bold text-sm">L: $${item.priceL}</div>` : ''}
+                                            ${(!item.priceM && !item.priceL && item.price) ? `<div class="text-matcha-dark font-bold text-sm">$${item.price}</div>` : ''}
+                                        </div>
                                     </div>
                                     ${item.description ? `<p class="text-sm text-gray-500 mt-2">${item.description}</p>` : ''}
                                 </div>
                                 <div class="bg-gray-50 p-3 border-t">
-                                    <button onclick="openCustomizeModal('${item.id}', '${item.name}', ${item.price})" class="w-full bg-white border border-matcha text-matcha py-2 rounded hover:bg-matcha hover:text-white transition font-bold group-hover:bg-matcha group-hover:text-white">
+                                    <button onclick="openCustomizeModal('${item.id}', '${item.name}', ${item.priceM || 0}, ${item.priceL || 0}, ${item.price || 0})" class="w-full bg-white border border-matcha text-matcha py-2 rounded hover:bg-matcha hover:text-white transition font-bold group-hover:bg-matcha group-hover:text-white">
                                         <i class="fa-solid fa-plus mr-1"></i> 選擇甜度冰塊
                                     </button>
                                 </div>
@@ -448,12 +453,23 @@
         };
 
         // 開啟客製化選項彈窗
-        window.openCustomizeModal = (id, name, price) => {
+        window.openCustomizeModal = (id, name, priceM, priceL, oldPrice) => {
+            // 產生容量選項 HTML
+            let sizeOptions = '';
+            if (priceM) sizeOptions += `<option value="M|${priceM}">中杯 (M) - $${priceM}</option>`;
+            if (priceL) sizeOptions += `<option value="L|${priceL}" ${!priceM ? 'selected' : ''}>大杯 (L) - $${priceL}</option>`;
+            if (!priceM && !priceL) sizeOptions += `<option value="預設|${oldPrice}">單一大小 - $${oldPrice}</option>`;
+
             const html = `
                 <div class="space-y-4">
                     <div class="flex justify-between items-center border-b pb-2">
                         <h3 class="font-bold text-xl text-ink">${name}</h3>
-                        <span class="text-matcha-dark font-bold text-lg">$${price}</span>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">容量大小</label>
+                        <select id="cust-size" class="w-full border p-2 rounded bg-white focus:border-matcha outline-none">
+                            ${sizeOptions}
+                        </select>
                     </div>
                     <div>
                         <label class="block text-sm font-bold text-gray-700 mb-1">冰塊</label>
@@ -488,29 +504,33 @@
             `;
             
             showModal('選擇客製化選項', html, () => {
+                const sizeArr = document.getElementById('cust-size').value.split('|');
+                const size = sizeArr[0];
+                const basePrice = parseInt(sizeArr[1]);
+
                 const ice = document.getElementById('cust-ice').value;
                 const sugar = document.getElementById('cust-sugar').value;
                 const toppingArr = document.getElementById('cust-topping').value.split('|');
                 const topping = toppingArr[0];
                 const toppingPrice = parseInt(toppingArr[1]);
                 
-                addToCart(id, name, price, ice, sugar, topping, toppingPrice);
+                addToCart(id, name, basePrice, size, ice, sugar, topping, toppingPrice);
             }, true, '確認並加入購物車');
         };
 
         // ==========================================
         // 7. Cart & Ordering Logic
         // ==========================================
-        window.addToCart = (id, name, basePrice, ice, sugar, topping, toppingPrice) => {
+        window.addToCart = (id, name, basePrice, size, ice, sugar, topping, toppingPrice) => {
             const finalPrice = basePrice + toppingPrice;
             // 產生購物車項目的獨特標記，確保相同選項的飲料會合併數量，不同選項則分開列出
-            const cartKey = `${id}-${ice}-${sugar}-${topping}`;
+            const cartKey = `${id}-${size}-${ice}-${sugar}-${topping}`;
             
             const existing = state.cart.find(item => item.cartKey === cartKey);
             if (existing) {
                 existing.qty += 1;
             } else {
-                state.cart.push({ cartKey, id, name, price: finalPrice, qty: 1, ice, sugar, topping });
+                state.cart.push({ cartKey, id, name, price: finalPrice, qty: 1, size, ice, sugar, topping });
             }
             updateCartUI();
             
@@ -554,7 +574,7 @@
                 total += subtotal;
                 
                 // 組合客製化文字
-                let variantText = `${item.ice || '預設'}, ${item.sugar || '預設'}`;
+                let variantText = `${item.size !== '預設' ? item.size + '杯, ' : ''}${item.ice || '預設'}, ${item.sugar || '預設'}`;
                 if (item.topping && item.topping !== '無') variantText += `, +${item.topping}`;
                 
                 return `
@@ -762,8 +782,10 @@
                                     // 組合後台顯示的客製化文字
                                     let vText = '';
                                     if(i.ice && i.sugar) {
-                                        vText = `${i.ice}, ${i.sugar}`;
+                                        vText = `${i.size !== '預設' ? i.size + '杯, ' : ''}${i.ice}, ${i.sugar}`;
                                         if (i.topping && i.topping !== '無') vText += `, +${i.topping}`;
+                                    } else if (i.size && i.size !== '預設') {
+                                        vText = `${i.size}杯`;
                                     }
                                     return `
                                     <li class="flex justify-between border-b border-dashed border-gray-200 pb-2 mb-2 last:border-0 last:pb-0 last:mb-0">
@@ -946,7 +968,7 @@
                                 <th class="p-3">所屬店家</th>
                                 <th class="p-3">分類</th>
                                 <th class="p-3">品名</th>
-                                <th class="p-3 text-right">價格</th>
+                                <th class="p-3 text-right">價格 (M / L)</th>
                                 <th class="p-3 text-center">狀態</th>
                                 <th class="p-3 text-center">操作</th>
                             </tr>
@@ -957,12 +979,18 @@
             filteredMenus.forEach(item => {
                 const shop = state.shops.find(s => s.id === item.shopId);
                 const shopName = shop ? shop.name : '<span class="text-red-500">未知店家</span>';
+                
+                let priceDisplay = '';
+                if(item.priceM) priceDisplay += `M: $${item.priceM} `;
+                if(item.priceL) priceDisplay += `L: $${item.priceL}`;
+                if(!item.priceM && !item.priceL && item.price) priceDisplay = `$${item.price}`;
+
                 tableHtml += `
                     <tr class="hover:bg-gray-50 transition">
                         <td class="p-3 text-gray-500">${shopName}</td>
                         <td class="p-3"><span class="bg-wood/20 text-wood-dark px-2 py-1 rounded text-xs">${item.category || '未分類'}</span></td>
                         <td class="p-3 font-bold text-ink">${item.name}</td>
-                        <td class="p-3 text-right font-bold text-matcha-dark">$${item.price}</td>
+                        <td class="p-3 text-right font-bold text-matcha-dark">${priceDisplay}</td>
                         <td class="p-3 text-center">
                             ${item.isAvailable === false ? `<span class="text-red-500 text-xs border border-red-500 px-2 py-1 rounded">已下架</span>` : `<span class="text-green-600 text-xs">供應中</span>`}
                         </td>
@@ -980,7 +1008,7 @@
         window.openMenuForm = (id = null) => {
             if (state.shops.length === 0) return showModal('提示', '請先建立店家再新增品項。');
             
-            const item = id ? state.menus.find(m => m.id === id) : { shopId: state.shops[0].id, name: '', price: 0, category: '精選飲品', description: '', isAvailable: true };
+            const item = id ? state.menus.find(m => m.id === id) : { shopId: state.shops[0].id, name: '', priceM: '', priceL: '', price: '', category: '精選飲品', description: '', isAvailable: true };
             const title = id ? '編輯飲品' : '新增飲品';
             
             const shopOptions = state.shops.map(s => `<option value="${s.id}" ${item.shopId === s.id ? 'selected' : ''}>${s.name}</option>`).join('');
@@ -993,18 +1021,22 @@
                             <select id="item-shop" class="w-full border p-2 rounded focus:border-matcha focus:outline-none">${shopOptions}</select>
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">分類 (如：茶類、果汁)</label>
-                            <input type="text" id="item-cat" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.category}">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">分類 (如：茶類)</label>
+                            <input type="text" id="item-cat" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.category || ''}">
                         </div>
                     </div>
-                    <div class="grid grid-cols-3 gap-4">
-                        <div class="col-span-2">
-                            <label class="block text-sm font-bold text-gray-700 mb-1">飲品名稱 *</label>
-                            <input type="text" id="item-name" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.name}">
+                    <div>
+                        <label class="block text-sm font-bold text-gray-700 mb-1">飲品名稱 *</label>
+                        <input type="text" id="item-name" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.name}">
+                    </div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-bold text-gray-700 mb-1">中杯 (M) 價格</label>
+                            <input type="number" id="item-price-m" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.priceM || ''}" placeholder="若無請留空">
                         </div>
                         <div>
-                            <label class="block text-sm font-bold text-gray-700 mb-1">價格 *</label>
-                            <input type="number" id="item-price" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.price}">
+                            <label class="block text-sm font-bold text-gray-700 mb-1">大杯 (L) 價格</label>
+                            <input type="number" id="item-price-l" class="w-full border p-2 rounded focus:border-matcha focus:outline-none" value="${item.priceL || item.price || ''}" placeholder="單一價格填此">
                         </div>
                     </div>
                     <div>
@@ -1023,11 +1055,12 @@
                     shopId: document.getElementById('item-shop').value,
                     category: document.getElementById('item-cat').value.trim() || '未分類',
                     name: document.getElementById('item-name').value.trim(),
-                    price: parseInt(document.getElementById('item-price').value) || 0,
+                    priceM: parseInt(document.getElementById('item-price-m').value) || 0,
+                    priceL: parseInt(document.getElementById('item-price-l').value) || 0,
                     description: document.getElementById('item-desc').value.trim(),
                     isAvailable: document.getElementById('item-status').checked
                 };
-                if (!data.name || data.price <= 0) return alert('請填寫正確的名稱與價格');
+                if (!data.name || (data.priceM <= 0 && data.priceL <= 0)) return alert('請填寫正確的名稱與至少一個容量的價格');
                 
                 try {
                     if (id) await updateDoc(doc(db, PATH_MENUS, id), data);
@@ -1095,7 +1128,7 @@
                     const modelVersion = customKey ? 'gemini-2.5-flash' : 'gemini-2.5-flash-preview-09-2025';
                     const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelVersion}:generateContent?key=${finalKey}`;
 
-                    const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果是空菜單請回傳空陣列。";
+                    const prompt = "你是一個專業的資料輸入員。請從這張菜單圖片中提取所有飲料品項。如果有分中杯(M)和大杯(L)的價格，請分別填寫對應的數字。如果飲料只有單一價格，請將價格填入 priceL 欄位中。如果是空菜單請回傳空陣列。";
 
                     const payload = {
                         contents: [{
@@ -1113,7 +1146,8 @@
                                     type: "OBJECT",
                                     properties: {
                                         name: { type: "STRING" },
-                                        price: { type: "INTEGER" },
+                                        priceM: { type: "INTEGER", description: "中杯價格，若無請留空或設為0" },
+                                        priceL: { type: "INTEGER", description: "大杯價格或單一價格" },
                                         category: { type: "STRING" }
                                     }
                                 }
@@ -1222,8 +1256,9 @@
                         <thead class="bg-purple-100 sticky top-0 z-10 text-purple-900 shadow-sm">
                             <tr>
                                 <th class="p-2 border-b w-1/4">分類</th>
-                                <th class="p-2 border-b w-1/2">品名</th>
-                                <th class="p-2 border-b w-1/4">價格</th>
+                                <th class="p-2 border-b w-2/5">品名</th>
+                                <th class="p-2 border-b w-1/6 text-center">M價格</th>
+                                <th class="p-2 border-b w-1/6 text-center">L價格</th>
                                 <th class="p-2 border-b text-center"><i class="fa-solid fa-trash-can text-gray-500"></i></th>
                             </tr>
                         </thead>
@@ -1235,7 +1270,8 @@
                     <tr id="scan-row-${idx}" class="hover:bg-gray-50 border-b last:border-0 group">
                         <td class="p-1"><input type="text" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-xs outline-none" id="scan-cat-${idx}" value="${item.category || '未分類'}"></td>
                         <td class="p-1"><input type="text" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm font-bold outline-none" id="scan-name-${idx}" value="${item.name}"></td>
-                        <td class="p-1"><input type="number" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm outline-none text-right pr-2" id="scan-price-${idx}" value="${item.price || 0}"></td>
+                        <td class="p-1"><input type="number" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm outline-none text-center" id="scan-price-m-${idx}" value="${item.priceM || ''}"></td>
+                        <td class="p-1"><input type="number" class="w-full p-1 border border-transparent hover:border-gray-300 focus:border-purple-500 focus:bg-white bg-transparent rounded text-sm outline-none text-center" id="scan-price-l-${idx}" value="${item.priceL || item.price || ''}"></td>
                         <td class="p-1 text-center"><button onclick="document.getElementById('scan-row-${idx}').remove()" class="text-gray-300 hover:text-red-500 transition px-2"><i class="fa-solid fa-xmark"></i></button></td>
                     </tr>
                 `;
@@ -1252,9 +1288,10 @@
                     const idx = row.id.split('-')[2];
                     const cat = document.getElementById(`scan-cat-${idx}`).value.trim();
                     const name = document.getElementById(`scan-name-${idx}`).value.trim();
-                    const price = parseInt(document.getElementById(`scan-price-${idx}`).value) || 0;
-                    if (name && price > 0) {
-                        finalItems.push({ category: cat, name, price, shopId: tempScanShopId, isAvailable: true, description: '' });
+                    const priceM = parseInt(document.getElementById(`scan-price-m-${idx}`).value) || 0;
+                    const priceL = parseInt(document.getElementById(`scan-price-l-${idx}`).value) || 0;
+                    if (name && (priceM > 0 || priceL > 0)) {
+                        finalItems.push({ category: cat, name, priceM, priceL, shopId: tempScanShopId, isAvailable: true, description: '' });
                     }
                 });
 
