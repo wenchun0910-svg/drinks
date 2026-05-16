@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-         const firebaseConfig = {
+        const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -183,7 +183,11 @@
             currentShopId: null,
             adminUser: null,
             currentAdminTab: 'orders',
-            siteName: '和風茶屋'
+            siteName: '和風茶屋',
+            // 新增訂單篩選狀態
+            orderFilterShopId: 'all',
+            orderFilterStartDate: '',
+            orderFilterEndDate: ''
         };
 
         // ==========================================
@@ -699,12 +703,83 @@
             }
         }
 
+        window.updateOrderFilters = () => {
+            state.orderFilterShopId = document.getElementById('filter-order-shop').value;
+            state.orderFilterStartDate = document.getElementById('filter-order-start').value;
+            state.orderFilterEndDate = document.getElementById('filter-order-end').value;
+            renderAdminDashboard();
+        };
+
+        window.clearOrderFilters = () => {
+            state.orderFilterShopId = 'all';
+            state.orderFilterStartDate = '';
+            state.orderFilterEndDate = '';
+            renderAdminDashboard();
+        };
+
         function renderAdminOrders() {
-            let html = `<h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">即時訂單管理</h2>`;
-            if (state.orders.length === 0) return html + `<div class="text-center py-10 text-gray-400"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p>目前沒有任何訂單</p></div>`;
+            let html = `<h2 class="text-2xl font-bold font-serif mb-6 text-ink border-l-4 border-matcha pl-3">訂單管理</h2>`;
+            
+            // 產生店家篩選選項
+            let shopOptions = `<option value="all">所有店家</option>`;
+            state.shops.forEach(s => {
+                shopOptions += `<option value="${s.id}" ${state.orderFilterShopId === s.id ? 'selected' : ''}>${s.name}</option>`;
+            });
+
+            // 篩選工具列 UI
+            html += `
+                <div class="bg-gray-50 p-4 rounded-lg border border-gray-200 mb-6 flex flex-wrap gap-4 items-end shadow-sm">
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1"><i class="fa-solid fa-store mr-1"></i>依店家篩選</label>
+                        <select id="filter-order-shop" onchange="updateOrderFilters()" class="border border-gray-300 p-2 rounded focus:outline-none focus:border-matcha bg-white text-sm min-w-[150px]">
+                            ${shopOptions}
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1"><i class="fa-regular fa-calendar mr-1"></i>開始日期</label>
+                        <input type="date" id="filter-order-start" onchange="updateOrderFilters()" value="${state.orderFilterStartDate}" class="border border-gray-300 p-2 rounded focus:outline-none focus:border-matcha bg-white text-sm">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-gray-500 mb-1"><i class="fa-regular fa-calendar-check mr-1"></i>結束日期</label>
+                        <input type="date" id="filter-order-end" onchange="updateOrderFilters()" value="${state.orderFilterEndDate}" class="border border-gray-300 p-2 rounded focus:outline-none focus:border-matcha bg-white text-sm">
+                    </div>
+                    <div>
+                        <button onclick="clearOrderFilters()" class="text-gray-500 hover:text-matcha text-sm px-3 py-2 transition font-bold border border-transparent hover:border-matcha rounded bg-white"><i class="fa-solid fa-eraser"></i> 清除</button>
+                    </div>
+                </div>
+            `;
+
+            // 執行篩選邏輯
+            let filteredOrders = state.orders;
+
+            if (state.orderFilterShopId !== 'all') {
+                filteredOrders = filteredOrders.filter(o => o.shopId === state.orderFilterShopId);
+            }
+
+            if (state.orderFilterStartDate) {
+                const startTime = new Date(state.orderFilterStartDate + 'T00:00:00').getTime();
+                filteredOrders = filteredOrders.filter(o => {
+                    if (!o.createdAt) return false;
+                    const orderTime = o.createdAt.toMillis ? o.createdAt.toMillis() : o.createdAt.getTime();
+                    return orderTime >= startTime;
+                });
+            }
+
+            if (state.orderFilterEndDate) {
+                const endTime = new Date(state.orderFilterEndDate + 'T23:59:59').getTime();
+                filteredOrders = filteredOrders.filter(o => {
+                    if (!o.createdAt) return false;
+                    const orderTime = o.createdAt.toMillis ? o.createdAt.toMillis() : o.createdAt.getTime();
+                    return orderTime <= endTime;
+                });
+            }
+
+            if (filteredOrders.length === 0) {
+                return html + `<div class="text-center py-10 text-gray-400 bg-white rounded-lg border border-gray-100"><i class="fa-solid fa-inbox text-4xl mb-3"></i><p>找不到符合條件的訂單</p></div>`;
+            }
 
             html += `<div class="space-y-4">`;
-            state.orders.forEach(order => {
+            filteredOrders.forEach(order => {
                 const date = order.createdAt?.toDate ? order.createdAt.toDate().toLocaleString() : '剛剛';
                 const statusColors = { pending: 'bg-yellow-100 text-yellow-800 border-yellow-200', completed: 'bg-green-100 text-green-800 border-green-200', cancelled: 'bg-red-100 text-red-800 border-red-200' };
                 const statusNames = { pending: '製作中', completed: '已完成', cancelled: '已取消' };
