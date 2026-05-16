@@ -151,10 +151,14 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {
-            // Mock config to prevent crash if running outside Canvas unexpectedly
-            apiKey: "mock-key", authDomain: "mock.firebaseapp.com", projectId: "mock-project"
-        };
+     const firebaseConfig = {
+  apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
+  authDomain: "drinks-e1c77.firebaseapp.com",
+  projectId: "drinks-e1c77",
+  storageBucket: "drinks-e1c77.firebasestorage.app",
+  messagingSenderId: "565299908319",
+  appId: "1:565299908319:web:0ce7b6a2412a30d57c636a"
+};
         const app = initializeApp(firebaseConfig);
         const auth = getAuth(app);
         const db = getFirestore(app);
