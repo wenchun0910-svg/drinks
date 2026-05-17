@@ -151,7 +151,7 @@
         // ==========================================
         // 1. Firebase Initialization & Config
         // ==========================================
-         const firebaseConfig = {
+       const firebaseConfig = {
   apiKey: "AIzaSyCKeMDUHPL5uexN5QmYg5VdVZRJ9CMlKIk",
   authDomain: "drinks-e1c77.firebaseapp.com",
   projectId: "drinks-e1c77",
@@ -222,10 +222,22 @@
         // ==========================================
         async function setupDataListeners() {
             onSnapshot(collection(db, PATH_SHOPS), (snapshot) => {
-                state.shops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                let fetchedShops = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                
+                // 將店家排序：開放訂購中的店家優先顯示在最上方
+                fetchedShops.sort((a, b) => {
+                    const aOpen = a.isOpen !== false ? 1 : 0;
+                    const bOpen = b.isOpen !== false ? 1 : 0;
+                    return bOpen - aOpen; // 營業中 (1) 排在未開放 (0) 前面
+                });
+                state.shops = fetchedShops;
+
                 updateShopSelectors();
+                
                 if (!state.currentShopId && state.shops.length > 0) {
-                    changeShop(state.shops[0].id, true);
+                    // 預設自動選擇第一家「開放中」的店家，若全部未開放則選清單第一家
+                    const defaultShop = state.shops.find(s => s.isOpen !== false) || state.shops[0];
+                    changeShop(defaultShop.id, true);
                 }
                 reRenderCurrentView();
             }, (error) => console.error("Error fetching shops:", error));
